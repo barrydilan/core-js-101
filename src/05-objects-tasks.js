@@ -111,33 +111,143 @@ function fromJSON(proto, json) {
  *  For more examples see unit tests.
  */
 
+function Selector() {
+  this.element = null;
+  this.id = null;
+  this.classes = [];
+  this.attributes = [];
+  this.pseudoClasses = [];
+  this.pseudoElement = null;
+  this.stringify = () => {
+    let result = '';
+    if (this.element) result += this.element;
+    if (this.id) result += `#${this.id}`;
+    if (this.classes.length) result += `.${this.classes.join('.')}`;
+    if (this.attributes.length) result += `[${this.attributes.join('][')}]`;
+    if (this.pseudoClasses.length) result += `:${this.pseudoClasses.join(':')}`;
+    if (this.pseudoElement) result += `::${this.pseudoElement}`;
+    this.element = null;
+    this.id = null;
+    this.classes = [];
+    this.attributes = [];
+    this.pseudoClasses = [];
+    this.pseudoElement = null;
+    return result;
+  };
+}
+
+class Builder {
+  constructor() {
+    this.order = -1;
+    this.current = new Selector();
+    this.combined = '';
+  }
+
+  stringify() {
+    const result = this.combined || this.current.stringify();
+    this.order = -1;
+    this.combined = '';
+    return result;
+  }
+
+  element(value) {
+    const weight = 0;
+    if (this.order > weight) this.throwOrderError();
+    this.checkPropertyExistance('element');
+    this.current.element = value;
+    this.order = weight;
+    return this;
+  }
+
+  id(value) {
+    const weight = 1;
+    if (this.order > weight) this.throwOrderError();
+    this.checkPropertyExistance('id');
+    this.current.id = value;
+    this.order = weight;
+    return this;
+  }
+
+  class(value) {
+    const weight = 2;
+    if (this.order > weight) this.throwOrderError();
+    this.current.classes.push(value);
+    this.order = weight;
+    return this;
+  }
+
+  attr(value) {
+    const weight = 3;
+    if (this.order > weight) this.throwOrderError();
+    this.current.attributes.push(value);
+    this.order = weight;
+    return this;
+  }
+
+  pseudoClass(value) {
+    const weight = 4;
+    if (this.order > weight) this.throwOrderError();
+    this.current.pseudoClasses.push(value);
+    this.order = weight;
+    return this;
+  }
+
+  pseudoElement(value) {
+    const weight = 5;
+    if (this.order > weight) this.throwOrderError();
+    this.checkPropertyExistance('pseudoElement');
+    this.current.pseudoElement = value;
+    this.order = weight;
+    return this;
+  }
+
+  combine(selector1, combinator, selector2) {
+    this.combined = `${selector1.stringify()} ${combinator} ${selector2.stringify()}`;
+    return this;
+  }
+
+  checkPropertyExistance(prop) {
+    if (this.current[prop]) {
+      this.order = -1;
+      this.current = new Selector();
+      throw Error('Element, id and pseudo-element should not occur more then one time inside the selector');
+    }
+  }
+
+  throwOrderError() {
+    this.order = -1;
+    this.current = new Selector();
+    throw Error('Selector parts should be arranged in the following order: element, id, class, attribute, pseudo-class, pseudo-element');
+  }
+}
+
 const cssSelectorBuilder = {
-  element(/* value */) {
-    throw new Error('Not implemented');
+  element(value) {
+    return new Builder().element(value);
   },
 
-  id(/* value */) {
-    throw new Error('Not implemented');
+  id(value) {
+    return new Builder().id(value);
   },
 
-  class(/* value */) {
-    throw new Error('Not implemented');
+  class(value) {
+    return new Builder().class(value);
   },
 
-  attr(/* value */) {
-    throw new Error('Not implemented');
+  attr(value) {
+    return new Builder().attr(value);
   },
 
-  pseudoClass(/* value */) {
-    throw new Error('Not implemented');
+  pseudoClass(value) {
+    return new Builder().pseudoClass(value);
   },
 
-  pseudoElement(/* value */) {
-    throw new Error('Not implemented');
+  pseudoElement(value) {
+    return new Builder().pseudoElement(value);
   },
 
-  combine(/* selector1, combinator, selector2 */) {
-    throw new Error('Not implemented');
+  combine(selector1, combinator, selector2) {
+    return new Builder().combine(selector1, combinator, selector2);
   },
 };
 
